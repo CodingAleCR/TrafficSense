@@ -61,6 +61,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private boolean mShouldReloadResource = false;
     private boolean mShouldSaveNextImage = false;
 
+    private TrafficSenseProcessor mProcessor;
+
     public void onSaveInstanceState(Bundle savedInstanceState) {
 // Save the current camera index.
         savedInstanceState.putInt(STATE_CAMERA_INDEX, mCamIndex);
@@ -197,6 +199,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     public void onCameraViewStarted(int width, int height) {
         mCamWidth = width;
         mCamHeight = height;
+
+        mProcessor = new TrafficSenseProcessor();
     }
 
     @Override
@@ -224,9 +228,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             }
             input = mResourceImage_;
         }
-        Mat corner = input.submat(0, 10, 0, 10); //Arriba-izquierda
-        corner.setTo(new Scalar(255, 255, 255));
-        Mat output = input;
+        Mat output = mProcessor.digest(input);
         if (mShouldSaveNextImage) {//Para foto salida debe ser rgba
             takePhoto(input, output);
             mShouldSaveNextImage = false;
