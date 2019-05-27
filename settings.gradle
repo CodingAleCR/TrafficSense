@@ -1,0 +1,4 @@
+
+def opencvsdk='../'
+include ':opencv',':app'
+project(':opencv').projectDir = new File(opencvsdk + '/opencv-sdk')
