@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">TrafficSense</string>
+    <string name="action_switch_camera">Cambiar cámara</string>
+    <string name="action_change_resolution">Cambiar resolucion</string>
+    <string name="option_high_resolution">800x600</string>
+    <string name="option_medium_resolution">640x480</string>
+    <string name="option_low_resolution">320x240</string>
 </resources>

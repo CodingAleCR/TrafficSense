@@ -2,12 +2,19 @@ package cr.codingale.trafficsense;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -23,12 +30,27 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         @Override
         public void onManagerConnected(int status) {
             if (status == BaseLoaderCallback.SUCCESS) {
+                mCameraView.setMaxFrameSize(mCamWidth, mCamHeight);
                 mCameraView.enableView();
             } else {
-                super.onManagerConnected(status);
+                Log.e(TAG, "OpenCV no se cargo");
+                Toast.makeText(MainActivity.this, "OpenCV no se cargo",
+                        Toast.LENGTH_LONG).show();
+                finish();
             }
         }
     };
+
+    private int mCamIndex; // 0-> camara trasera; 1-> camara frontal
+    private int mCamWidth = 320;// resolucion deseada de la imagen
+    private int mCamHeight = 240;
+    private static final String STATE_CAMERA_INDEX = "cameraIndex";
+
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+// Save the current camera index.
+        savedInstanceState.putInt(STATE_CAMERA_INDEX, mCamIndex);
+        super.onSaveInstanceState(savedInstanceState);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +68,74 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         mCameraView = findViewById(R.id.java_surface_view);
         mCameraView.setVisibility(SurfaceView.VISIBLE);
         mCameraView.setCvCameraViewListener(this);
+
+        if (savedInstanceState != null) {
+            mCamIndex = savedInstanceState.getInt(STATE_CAMERA_INDEX, 0);
+        } else {
+            mCamIndex = CameraBridgeViewBase.CAMERA_ID_BACK;
+        }
+        mCameraView.setCameraIndex(mCamIndex);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        super.onCreateOptionsMenu(menu);
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.cambiarCamara:
+                if (mCamIndex == CameraBridgeViewBase.CAMERA_ID_BACK) {
+                    mCamIndex = CameraBridgeViewBase.CAMERA_ID_FRONT;
+                } else mCamIndex = CameraBridgeViewBase.CAMERA_ID_BACK;
+                recreate();
+                break;
+            case R.id.resolucion_800x600:
+                mCamWidth = 800;
+                mCamHeight = 600;
+                restartResolution();
+                break;
+            case R.id.resolucion_640x480:
+                mCamWidth = 640;
+                mCamHeight = 480;
+                restartResolution();
+                break;
+            case R.id.resolucion_320x240:
+                mCamWidth = 320;
+                mCamHeight = 240;
+                restartResolution();
+                break;
+        }
+        String msg = "W=" + mCamWidth + " H= " +
+                mCamHeight + " Cam= " +
+                Integer.toBinaryString(mCamIndex);
+        Toast.makeText(MainActivity.this, msg,
+                Toast.LENGTH_LONG).show();
+        return true;
+    }
+
+    public void restartResolution() {
+        mCameraView.disableView();
+        mCameraView.setMaxFrameSize(mCamWidth, mCamHeight);
+        mCameraView.enableView();
+    }
+
+    @Override
+    public void openOptionsMenu() {
+        super.openOptionsMenu();
+        Configuration config = getResources().getConfiguration();
+        if ((config.screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK) > Configuration.SCREENLAYOUT_SIZE_LARGE) {
+            int originalScreenLayout = config.screenLayout;
+            config.screenLayout = Configuration.SCREENLAYOUT_SIZE_LARGE;
+            super.openOptionsMenu();
+            config.screenLayout = originalScreenLayout;
+        } else {
+            super.openOptionsMenu();
+        }
     }
 
     @Override
@@ -76,7 +166,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     @Override
     public void onCameraViewStarted(int width, int height) {
-        //Not used.
+        mCamWidth = width;
+        mCamHeight = height;
     }
 
     @Override
@@ -87,5 +178,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         return inputFrame.rgba();
+    }
+
+    public boolean onTouchEvent(MotionEvent event) {
+        openOptionsMenu();
+        return true;
     }
 }
