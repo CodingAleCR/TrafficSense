@@ -3,6 +3,8 @@ package cr.codingale.trafficsense;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -19,7 +21,10 @@ import android.widget.Toast;
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
 
 public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "OCVSample::MainActivity";
@@ -45,6 +50,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private int mCamWidth = 320;// resolucion deseada de la imagen
     private int mCamHeight = 240;
     private static final String STATE_CAMERA_INDEX = "cameraIndex";
+
+    private int mInputType = 0; // 0 -> cámara 1 -> fichero1 2 -> fichero2
+    Mat mResourceImage_;
+    boolean mShouldReloadResource = false;
 
     public void onSaveInstanceState(Bundle savedInstanceState) {
 // Save the current camera index.
@@ -109,6 +118,18 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 mCamHeight = 240;
                 restartResolution();
                 break;
+
+            case R.id.entrada_camara:
+                mInputType = 0;
+                break;
+            case R.id.entrada_fichero1:
+                mInputType = 1;
+                mShouldReloadResource = true;
+                break;
+            case R.id.entrada_fichero2:
+                mInputType = 2;
+                mShouldReloadResource = true;
+                break;
         }
         String msg = "W=" + mCamWidth + " H= " +
                 mCamHeight + " Cam= " +
@@ -118,10 +139,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         return true;
     }
 
-    public void restartResolution() {
-        mCameraView.disableView();
-        mCameraView.setMaxFrameSize(mCamWidth, mCamHeight);
-        mCameraView.enableView();
+    public boolean onTouchEvent(MotionEvent event) {
+        openOptionsMenu();
+        return true;
     }
 
     @Override
@@ -177,11 +197,30 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        return inputFrame.rgba();
+        Mat input;
+        if (mInputType == 0) {
+            input = inputFrame.rgba();
+        } else {
+            if(mShouldReloadResource) {
+                mResourceImage_ = new Mat();
+                //Poner aqui el nombre de los archivos copiados
+                int[] RECURSOS_FICHEROS = {0, R.raw.img1, R.raw.img2};
+                Bitmap bitmap = BitmapFactory.decodeResource(getResources(),
+                        RECURSOS_FICHEROS[mInputType]);
+                //Convierte el recurso a una Mat de OpenCV
+                Utils.bitmapToMat(bitmap, mResourceImage_);
+                Imgproc.resize(mResourceImage_, mResourceImage_,
+                        new Size(mCamWidth, mCamHeight));
+                mShouldReloadResource = false;
+            }
+            input = mResourceImage_;
+        }
+        return input.clone();
     }
 
-    public boolean onTouchEvent(MotionEvent event) {
-        openOptionsMenu();
-        return true;
+    public void restartResolution() {
+        mCameraView.disableView();
+        mCameraView.setMaxFrameSize(mCamWidth, mCamHeight);
+        mCameraView.enableView();
     }
 }
