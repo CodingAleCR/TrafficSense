@@ -24,6 +24,7 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -223,7 +224,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             }
             input = mResourceImage_;
         }
-        Mat output = input.clone();
+        Mat corner = input.submat(0, 10, 0, 10); //Arriba-izquierda
+        corner.setTo(new Scalar(255, 255, 255));
+        Mat output = input;
         if (mShouldSaveNextImage) {//Para foto salida debe ser rgba
             takePhoto(input, output);
             mShouldSaveNextImage = false;
