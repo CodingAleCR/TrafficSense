@@ -212,7 +212,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat input;
         if (mInputType == 0) {
-            input = inputFrame.rgba();
+            input = inputFrame.gray();
         } else {
             if (mShouldReloadResource) {
                 mResourceImage_ = new Mat();
