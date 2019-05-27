@@ -32,4 +32,8 @@
                 android:title="@string/option_file2"/>
         </menu>
     </item>
+    <item android:id="@+id/guardar_imagenes"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:title="@string/action_save_output">
+    </item>
 </menu>

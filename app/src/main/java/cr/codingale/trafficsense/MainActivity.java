@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -24,7 +25,10 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "OCVSample::MainActivity";
@@ -52,8 +56,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private static final String STATE_CAMERA_INDEX = "cameraIndex";
 
     private int mInputType = 0; // 0 -> cámara 1 -> fichero1 2 -> fichero2
-    Mat mResourceImage_;
-    boolean mShouldReloadResource = false;
+    private Mat mResourceImage_;
+    private boolean mShouldReloadResource = false;
+    private boolean mShouldSaveNextImage = false;
 
     public void onSaveInstanceState(Bundle savedInstanceState) {
 // Save the current camera index.
@@ -130,6 +135,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 mInputType = 2;
                 mShouldReloadResource = true;
                 break;
+            case R.id.guardar_imagenes:
+                mShouldSaveNextImage = true;
+                break;
         }
         String msg = "W=" + mCamWidth + " H= " +
                 mCamHeight + " Cam= " +
@@ -201,7 +209,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         if (mInputType == 0) {
             input = inputFrame.rgba();
         } else {
-            if(mShouldReloadResource) {
+            if (mShouldReloadResource) {
                 mResourceImage_ = new Mat();
                 //Poner aqui el nombre de los archivos copiados
                 int[] RECURSOS_FICHEROS = {0, R.raw.img1, R.raw.img2};
@@ -215,7 +223,54 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             }
             input = mResourceImage_;
         }
-        return input.clone();
+        Mat output = input.clone();
+        if (mShouldSaveNextImage) {//Para foto salida debe ser rgba
+            takePhoto(input, output);
+            mShouldSaveNextImage = false;
+        }
+        if (mInputType > 0) {
+            //Es necesario que el tamaño de la salida coincida con el real de captura
+            Imgproc.resize(output, output, new Size(mCamWidth, mCamHeight));
+        }
+        return output;
+    }
+
+    private void takePhoto(final Mat input, final Mat output) {
+        // Determina la ruta para crear los archivos
+        final long currentTimeMillis = System.currentTimeMillis();
+        final String appName = getString(R.string.app_name);
+        final String galleryPath = Environment
+                .getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_PICTURES).toString();
+        final String albumPath = galleryPath + "/" + appName;
+        final String photoPathIn = albumPath + "/In_" + currentTimeMillis
+                + ".png";
+        final String photoPathOut = albumPath + "/Out_" + currentTimeMillis
+                + ".png";
+
+        // Asegurarse que el directorio existe
+        File album = new File(albumPath);
+        if (!album.isDirectory() && !album.mkdirs()) {
+            Log.e(TAG, "Error al crear el directorio " + albumPath);
+            return;
+        }
+
+        // Intenta crear los archivos
+        Mat mBgr = new Mat();
+        if (output.channels() == 1)
+            Imgproc.cvtColor(output, mBgr, Imgproc.COLOR_GRAY2BGR, 3);
+        else
+            Imgproc.cvtColor(output, mBgr, Imgproc.COLOR_RGBA2BGR, 3);
+        if (!Imgcodecs.imwrite(photoPathOut, mBgr)) {
+            Log.e(TAG, "Fallo al guardar " + photoPathOut);
+        }
+        if (input.channels() == 1)
+            Imgproc.cvtColor(input, mBgr, Imgproc.COLOR_GRAY2BGR, 3);
+        else
+            Imgproc.cvtColor(input, mBgr, Imgproc.COLOR_RGBA2BGR, 3);
+        if (!Imgcodecs.imwrite(photoPathIn, mBgr))
+            Log.e(TAG, "Fallo al guardar " + photoPathIn);
+        mBgr.release();
     }
 
     public void restartResolution() {
