@@ -251,7 +251,17 @@ class TrafficSenseProcessor {
     }
 
     private void zonaRoja(Mat entrada) { //Ejemplo para ser rellenado en curso
-        salidaintensidad = entrada;
+        Mat red = new Mat();
+        Mat green = new Mat();
+        Mat blue = new Mat();
+        Mat maxGB = new Mat();
+
+        salidaintensidad = new Mat();
+        Core.extractChannel(entrada, red, 0);
+        Core.extractChannel(entrada, green, 1);
+        Core.extractChannel(entrada, blue, 2);
+        Core.max(green, blue, maxGB);
+        Core.subtract(red, maxGB, salidaintensidad);
     }
 
     private void aumentoLinealConstraste(Mat entrada) { //Ejemplo para ser rellenado
