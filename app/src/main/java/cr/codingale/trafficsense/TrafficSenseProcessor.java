@@ -182,7 +182,7 @@ class TrafficSenseProcessor {
                 Imgproc.equalizeHist(gris, salidaintensidad);
                 break;
             case ZONAS_ROJAS:
-                zonaVerde(entrada); //resultado en salidaintensidad
+                zonaRoja(entrada); //resultado en salidaintensidad
                 break;
             default:
                 salidaintensidad = entrada;
