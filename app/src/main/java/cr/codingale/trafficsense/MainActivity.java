@@ -1,12 +1,15 @@
 package cr.codingale.trafficsense;
 
 import android.Manifest;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -24,7 +27,6 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -62,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     private boolean mShouldSaveNextImage = false;
 
     private TrafficSenseProcessor mProcessor;
+
+    private boolean mSplitScreen = false;
 
     public void onSaveInstanceState(Bundle savedInstanceState) {
 // Save the current camera index.
@@ -141,6 +145,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             case R.id.guardar_imagenes:
                 mShouldSaveNextImage = true;
                 break;
+            case R.id.preferencias:
+                Intent i = new Intent(this, SettingsActivity.class);
+                startActivity(i);
+                break;
         }
         String msg = "W=" + mCamWidth + " H= " +
                 mCamHeight + " Cam= " +
@@ -201,6 +209,23 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         mCamHeight = height;
 
         mProcessor = new TrafficSenseProcessor();
+
+        PreferenceManager.setDefaultValues(this, R.xml.preferencias, false);
+        SharedPreferences preferencias = PreferenceManager
+                .getDefaultSharedPreferences(this);
+        mSplitScreen = (preferencias.getBoolean("pantalla_partida", true));
+        String valor = preferencias.getString("salida", "ENTRADA");
+        mProcessor.setMostrarSalida(TrafficSenseProcessor.Salida.valueOf(valor));
+        valor = preferencias.getString("intensidad", "SIN_PROCESO");
+        mProcessor.setTipoIntensidad(TrafficSenseProcessor.TipoIntensidad.valueOf(valor));
+        valor = preferencias.getString("operador_local", "SIN_PROCESO");
+        mProcessor.setTipoOperadorLocal(TrafficSenseProcessor.TipoOperadorLocal.valueOf(valor));
+        valor = preferencias.getString("binarizacion", "SIN_PROCESO");
+        mProcessor.setTipoBinarizacion(TrafficSenseProcessor.TipoBinarizacion.valueOf(valor));
+        valor = preferencias.getString("segmentacion", "SIN_PROCESO");
+        mProcessor.setTipoSegmentacion(TrafficSenseProcessor.TipoSegmentacion.valueOf(valor));
+        valor = preferencias.getString("reconocimiento", "SIN_PROCESO");
+        mProcessor.setTipoReconocimiento(TrafficSenseProcessor.TipoReconocimiento.valueOf(valor));
     }
 
     @Override
@@ -229,7 +254,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             input = mResourceImage_;
         }
         Mat output = mProcessor.digest(input);
-        if (mShouldSaveNextImage) {//Para foto salida debe ser rgba
+        if (mShouldSaveNextImage) { //Para foto salida debe ser rgba
             takePhoto(input, output);
             mShouldSaveNextImage = false;
         }

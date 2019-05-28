@@ -20,20 +20,28 @@
                 android:title="@string/option_low_resolution" />
         </menu>
     </item>
-    <item android:id="@+id/cambiar_entrada"
+    <item
+        android:id="@+id/cambiar_entrada"
         android:icon="@android:drawable/ic_menu_gallery"
         android:title="@string/action_change_input">
         <menu>
-            <item android:id="@+id/entrada_camara"
-                android:title="@string/option_camera"/>
-            <item android:id="@+id/entrada_fichero1"
-                android:title="@string/option_file1"/>
-            <item android:id="@+id/entrada_fichero2"
-                android:title="@string/option_file2"/>
+            <item
+                android:id="@+id/entrada_camara"
+                android:title="@string/option_camera" />
+            <item
+                android:id="@+id/entrada_fichero1"
+                android:title="@string/option_file1" />
+            <item
+                android:id="@+id/entrada_fichero2"
+                android:title="@string/option_file2" />
         </menu>
     </item>
-    <item android:id="@+id/guardar_imagenes"
+    <item
+        android:id="@+id/guardar_imagenes"
         android:icon="@android:drawable/ic_menu_gallery"
-        android:title="@string/action_save_output">
-    </item>
+        android:title="@string/action_save_output" />
+    <item
+        android:id="@+id/preferencias"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="@string/settings" />
 </menu>

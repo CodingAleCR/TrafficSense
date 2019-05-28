@@ -10,4 +10,5 @@
     <string name="option_file1">fichero1</string>
     <string name="option_file2">fichero2</string>
     <string name="action_save_output">Guardar Imagenes</string>
+    <string name="settings">Preferencias</string>
 </resources>
