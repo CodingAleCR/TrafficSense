@@ -182,7 +182,7 @@ class TrafficSenseProcessor {
                 Imgproc.equalizeHist(gris, salidaintensidad);
                 break;
             case ZONAS_ROJAS:
-                zonaRoja(entrada); //resultado en salidaintensidad
+                zonaVerde(entrada); //resultado en salidaintensidad
                 break;
             default:
                 salidaintensidad = entrada;
@@ -262,6 +262,20 @@ class TrafficSenseProcessor {
         Core.extractChannel(entrada, blue, 2);
         Core.max(green, blue, maxGB);
         Core.subtract(red, maxGB, salidaintensidad);
+    }
+
+    private void zonaVerde(Mat entrada) { //Ejemplo para ser rellenado en curso
+        Mat red = new Mat();
+        Mat green = new Mat();
+        Mat blue = new Mat();
+        Mat maxRB = new Mat();
+
+        salidaintensidad = new Mat();
+        Core.extractChannel(entrada, red, 0);
+        Core.extractChannel(entrada, green, 1);
+        Core.extractChannel(entrada, blue, 2);
+        Core.max(red, blue, maxRB);
+        Core.subtract(green, maxRB, salidaintensidad);
     }
 
     private void aumentoLinealConstraste(Mat entrada) { //Ejemplo para ser rellenado
