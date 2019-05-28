@@ -254,6 +254,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             input = mResourceImage_;
         }
         Mat output = mProcessor.digest(input);
+        if (mSplitScreen) {
+            mProcessor.splitScreen(input, output);
+        }
         if (mShouldSaveNextImage) { //Para foto salida debe ser rgba
             takePhoto(input, output);
             mShouldSaveNextImage = false;

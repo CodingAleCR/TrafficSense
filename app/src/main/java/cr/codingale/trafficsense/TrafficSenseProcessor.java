@@ -1,7 +1,15 @@
 package cr.codingale.trafficsense;
 
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfFloat;
+import org.opencv.core.MatOfInt;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+
+import java.util.ArrayList;
+import java.util.List;
 
 class TrafficSenseProcessor {
 
@@ -182,6 +190,7 @@ class TrafficSenseProcessor {
         if (mostrarSalida == Salida.INTENSIDAD) {
             return salidaintensidad;
         }
+
         // Operador local
         switch (tipoOperadorLocal) {
             case SIN_PROCESO:
@@ -194,6 +203,7 @@ class TrafficSenseProcessor {
         if (mostrarSalida == Salida.OPERADOR_LOCAL) {
             return salidatrlocal;
         }
+
         // Binarización
         switch (tipoBinarizacion) {
             case SIN_PROCESO:
@@ -214,6 +224,7 @@ class TrafficSenseProcessor {
         if (mostrarSalida == Salida.SEGMENTACION) {
             return salidasegmentacion;
         }
+
         // Reconocimiento OCR
         switch (tipoReconocimiento) {
             case SIN_PROCESO:
@@ -223,15 +234,75 @@ class TrafficSenseProcessor {
         return salidaocr;
     }
 
-    void zonaRoja(Mat entrada) { //Ejemplo para ser rellenado en curso
+    void splitScreen(Mat entrada, Mat salida) {
+        if (entrada.channels() > salida.channels())
+            Imgproc.cvtColor(salida, salida, Imgproc.COLOR_GRAY2RGBA);
+        if (entrada.channels() < salida.channels())
+            Imgproc.cvtColor(entrada, entrada, Imgproc.COLOR_GRAY2RGBA);
+        //Representar la entrada en la mitad izquierda
+        Rect mitad_izquierda = new Rect();
+        mitad_izquierda.x = 0;
+        mitad_izquierda.y = 0;
+        mitad_izquierda.height = entrada.height();
+        mitad_izquierda.width = entrada.width() / 2;
+        Mat salida_mitad_izquierda = salida.submat(mitad_izquierda);
+        Mat entrada_mitad_izquierda = entrada.submat(mitad_izquierda);
+        entrada_mitad_izquierda.copyTo(salida_mitad_izquierda);
+    }
+
+    private void zonaRoja(Mat entrada) { //Ejemplo para ser rellenado en curso
         salidaintensidad = entrada;
     }
 
-    void aumentoLinealConstraste(Mat entrada) { //Ejemplo para ser rellenado
-        salidaintensidad = entrada;
+    private void aumentoLinealConstraste(Mat entrada) { //Ejemplo para ser rellenado
+        MatOfInt canales = new MatOfInt(0);
+        MatOfInt numero_bins = new MatOfInt(256);
+        MatOfFloat intervalo = new MatOfFloat(0, 256);
+        Mat hist = new Mat();
+        List<Mat> imagenes = new ArrayList<Mat>();
+        float[] histograma = new float[256];
+
+
+        salidaintensidad = new Mat();
+        imagenes.clear(); //Eliminar imagen anterior si la hay
+        imagenes.add(entrada); //Añadir imagen actual
+        Imgproc.calcHist(imagenes, canales, new Mat(), hist,
+                numero_bins, intervalo);
+
+        //Lectura del histograma a un array de float
+        hist.get(0, 0, histograma);
+
+        //Calcular xmin y xmax
+        int total_pixeles = entrada.cols() * entrada.rows();
+        float porcentaje_saturacion = (float) 0.05;
+        int pixeles_saturados = (int) (porcentaje_saturacion
+                * total_pixeles);
+        int xmin = 0;
+        int xmax = 255;
+        float acumulado = 0f;
+        for (int n = 0; n < 256; n++) { //xmin
+            acumulado = acumulado + histograma[n];
+            if (acumulado > pixeles_saturados) {
+                xmin = n;
+                break;
+            }
+        }
+        acumulado = 0;
+        for (int n = 255; n >= 0; n--) { //xmax
+            acumulado = acumulado + histograma[n];
+            if (acumulado > pixeles_saturados) {
+                xmax = n;
+                break;
+            }
+        }
+
+        //Calculo de la salida
+        Core.subtract(entrada, new Scalar(xmin), salidaintensidad);
+        float pendiente = ((float) 255.0) / ((float) (xmax - xmin));
+        Core.multiply(salidaintensidad, new Scalar(pendiente), salidaintensidad);
     }
 
-    void pasoBajo(Mat entrada) { //Ejemplo para ser rellenado
+    private void pasoBajo(Mat entrada) { //Ejemplo para ser rellenado
         salidatrlocal = entrada;
     }
 }
