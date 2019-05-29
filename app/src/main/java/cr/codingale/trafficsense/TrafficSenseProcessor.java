@@ -277,7 +277,7 @@ class TrafficSenseProcessor {
                 salidabinarizacion = salidatrlocal;
                 break;
             case OTSU:
-                salidabinarizacion = salidatrlocal;
+                binarizacionOtsu(entrada);
                 break;
             default:
                 salidabinarizacion = salidatrlocal;
@@ -488,6 +488,13 @@ class TrafficSenseProcessor {
         int maximum = (int) minMax.maxVal;
         int thresh = maximum / 4;
         Imgproc.threshold(salidabinarizacion, salidabinarizacion, thresh, 255, Imgproc.THRESH_BINARY);
+    }
+
+    private void binarizacionOtsu(Mat entrada) {
+        Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+
+        Imgproc.threshold(gris, salidabinarizacion, 0, 255,Imgproc.THRESH_OTSU |
+                Imgproc.THRESH_BINARY);
     }
 
 }
