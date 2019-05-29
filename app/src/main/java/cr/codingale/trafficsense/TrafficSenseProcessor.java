@@ -16,8 +16,12 @@ import java.util.List;
 class TrafficSenseProcessor {
 
     public enum Salida {
-        ENTRADA, INTENSIDAD, OPERADOR_LOCAL, BINARIZACION,
-        SEGMENTACION, RECONOCIMIENTO
+        ENTRADA,
+        INTENSIDAD,
+        OPERADOR_LOCAL,
+        BINARIZACION,
+        SEGMENTACION,
+        RECONOCIMIENTO
     }
 
     public enum TipoIntensidad {
@@ -42,8 +46,9 @@ class TrafficSenseProcessor {
 
     public enum TipoBinarizacion {
         SIN_PROCESO,
+        ZONAS_ROJAS,
         ADAPTATIVA,
-        MAXIMO
+        OTSU
     }
 
     public enum TipoSegmentacion {
@@ -219,6 +224,7 @@ class TrafficSenseProcessor {
             case SIN_PROCESO:
                 salidatrlocal = entrada;
                 break;
+
             case PASO_BAJO:
                 Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
                 pasoBajo(gris); //resultado en salidatrlocal
@@ -262,6 +268,15 @@ class TrafficSenseProcessor {
         // Binarización
         switch (tipoBinarizacion) {
             case SIN_PROCESO:
+                salidabinarizacion = entrada;
+                break;
+            case ZONAS_ROJAS:
+                binarizacionRojas(entrada);
+                break;
+            case ADAPTATIVA:
+                salidabinarizacion = salidatrlocal;
+                break;
+            case OTSU:
                 salidabinarizacion = salidatrlocal;
                 break;
             default:
@@ -455,6 +470,26 @@ class TrafficSenseProcessor {
 
         salidatrlocal = dilation_residue;
     }
+
+    private void binarizacionRojas(Mat entrada) { //Ejemplo para ser rellenado en curso
+        Mat red = new Mat();
+        Mat green = new Mat();
+        Mat blue = new Mat();
+        Mat maxGB = new Mat();
+
+        salidabinarizacion = new Mat();
+        Core.extractChannel(entrada, red, 0);
+        Core.extractChannel(entrada, green, 1);
+        Core.extractChannel(entrada, blue, 2);
+        Core.max(green, blue, maxGB);
+        Core.subtract(red, maxGB, salidabinarizacion);
+
+        Core.MinMaxLocResult minMax = Core.minMaxLoc(salidabinarizacion);
+        int maximum = (int) minMax.maxVal;
+        int thresh = maximum / 4;
+        Imgproc.threshold(salidabinarizacion, salidabinarizacion, thresh, 255, Imgproc.THRESH_BINARY);
+    }
+
 }
 
 
