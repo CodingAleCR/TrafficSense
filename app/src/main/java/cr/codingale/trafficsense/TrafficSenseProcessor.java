@@ -274,7 +274,7 @@ class TrafficSenseProcessor {
                 binarizacionRojas(entrada);
                 break;
             case ADAPTATIVA:
-                salidabinarizacion = salidatrlocal;
+                binarizacionAdaptativa(entrada);
                 break;
             case OTSU:
                 binarizacionOtsu(entrada);
@@ -433,12 +433,12 @@ class TrafficSenseProcessor {
 
         Mat Gx2 = new Mat();
         Mat Gy2 = new Mat();
-        Core.multiply(Gx, Gx , Gx2); //Gx2 = Gx*Gx elemento a elemento
-        Core.multiply(Gy, Gy , Gy2); //Gy2 = Gy*Gy elemento a elemento
+        Core.multiply(Gx, Gx, Gx2); //Gx2 = Gx*Gx elemento a elemento
+        Core.multiply(Gy, Gy, Gy2); //Gy2 = Gy*Gy elemento a elemento
         Mat ModGrad2 = new Mat();
-        Core.add( Gx2 , Gy2, ModGrad2);
+        Core.add(Gx2, Gy2, ModGrad2);
         Mat ModGrad = new Mat();
-        Core.sqrt(ModGrad2,ModGrad);
+        Core.sqrt(ModGrad2, ModGrad);
 
         ModGrad.convertTo(salidatrlocal, CvType.CV_8UC1);
     }
@@ -462,9 +462,9 @@ class TrafficSenseProcessor {
 
     private void residuoDilatacion(Mat entrada, double tam) { //Ejemplo para ser rellenado
         Mat SE = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new
-                Size(tam,tam));
+                Size(tam, tam));
         Mat gray_dilation = new Mat(); // Result
-        Imgproc.dilate(entrada, gray_dilation, SE ); // 3x3 dilation
+        Imgproc.dilate(entrada, gray_dilation, SE); // 3x3 dilation
         Mat dilation_residue = new Mat();
         Core.subtract(gray_dilation, entrada, dilation_residue);
 
@@ -493,10 +493,33 @@ class TrafficSenseProcessor {
     private void binarizacionOtsu(Mat entrada) {
         Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
 
-        Imgproc.threshold(gris, salidabinarizacion, 0, 255,Imgproc.THRESH_OTSU |
+        Imgproc.threshold(gris, salidabinarizacion, 0, 255, Imgproc.THRESH_OTSU |
                 Imgproc.THRESH_BINARY);
     }
 
+    private void binarizacionAdaptativa(Mat entrada) {
+        Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+
+        //Calculo del gradiente morfológico.
+        int contraste = 2;
+        int tamano = 7;
+
+        Mat SE = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new
+                Size(tamano, tamano));
+        Mat gray_dilation = new Mat(); // Result
+        Imgproc.dilate(gris, gray_dilation, SE); // 3x3 dilation
+        Mat dilation_residue = new Mat();
+        Core.subtract(gray_dilation, gris, dilation_residue);
+
+        Imgproc.adaptiveThreshold(
+                dilation_residue,
+                salidabinarizacion,
+                255,
+                Imgproc.ADAPTIVE_THRESH_MEAN_C,
+                Imgproc.THRESH_BINARY,
+                tamano,
+                -contraste);
+    }
 }
 
 
