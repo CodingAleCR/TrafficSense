@@ -243,12 +243,12 @@ class TrafficSenseProcessor {
 
             case MORFOLOGICO:
                 Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
-                morfologico(gris);
+                residuoDilatacion(gris, 3);
                 break;
 
             case RESIDUO_DILATACION:
                 Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
-                residuoDilatacion(gris);
+                residuoDilatacion(gris, 11);
                 break;
 
             default:
@@ -445,12 +445,15 @@ class TrafficSenseProcessor {
         modGradiente(cRojas);
     }
 
-    private void morfologico(Mat entrada) { //Ejemplo para ser rellenado
-        salidatrlocal = new Mat();
-    }
+    private void residuoDilatacion(Mat entrada, double tam) { //Ejemplo para ser rellenado
+        Mat SE = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new
+                Size(tam,tam));
+        Mat gray_dilation = new Mat(); // Result
+        Imgproc.dilate(entrada, gray_dilation, SE ); // 3x3 dilation
+        Mat dilation_residue = new Mat();
+        Core.subtract(gray_dilation, entrada, dilation_residue);
 
-    private void residuoDilatacion(Mat entrada) { //Ejemplo para ser rellenado
-        salidatrlocal = new Mat();
+        salidatrlocal = dilation_residue;
     }
 }
 
