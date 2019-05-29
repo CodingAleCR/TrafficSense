@@ -22,6 +22,7 @@
         <item>Ecualización de histograma</item>
         <item>Luminancia</item>
         <item>Zonas Rojas</item>
+        <item>Zonas Verdes</item>
     </string-array>
     <string-array name="valorIntensidad">
         <item>SIN_PROCESO</item>
@@ -29,14 +30,27 @@
         <item>EQUALIZ_HISTOGRAMA</item>
         <item>LUMINANCIA</item>
         <item>ZONAS_ROJAS</item>
+        <item>ZONAS_VERDES</item>
     </string-array>
     <string-array name="tipoOperadorLocal">
         <item>Sin proceso</item>
         <item>Filtro Paso Bajo</item>
+        <item>Filtro Paso Alto</item>
+        <item>Gradiente Sobel Luminancia</item>
+        <item>Gradiente Sobel Rojas</item>
+        <item>Gradiente Sobel Verdes</item>
+        <item>Morfológico 3x3</item>
+        <item>Res. Dilatación 11x11</item>
     </string-array>
     <string-array name="valorOperadorLocal">
         <item>SIN_PROCESO</item>
         <item>PASO_BAJO</item>
+        <item>PASO_ALTO</item>
+        <item>SOBEL_ILUMINANCIA</item>
+        <item>SOBEL_ROJAS</item>
+        <item>SOBEL_VERDES</item>
+        <item>MORFOLOGICO</item>
+        <item>RESIDUO_DILATACION</item>
     </string-array>
     <string-array name="tipoBinarizacion">
         <item>Sin proceso</item>

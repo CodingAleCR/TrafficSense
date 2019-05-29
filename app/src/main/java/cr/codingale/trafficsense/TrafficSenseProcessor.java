@@ -1,11 +1,13 @@
 package cr.codingale.trafficsense;
 
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfFloat;
 import org.opencv.core.MatOfInt;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -19,20 +21,38 @@ class TrafficSenseProcessor {
     }
 
     public enum TipoIntensidad {
-        SIN_PROCESO, LUMINANCIA,
-        AUMENTO_LINEAL_CONSTRASTE, EQUALIZ_HISTOGRAMA, ZONAS_ROJAS
+        SIN_PROCESO,
+        LUMINANCIA,
+        AUMENTO_LINEAL_CONSTRASTE,
+        EQUALIZ_HISTOGRAMA,
+        ZONAS_ROJAS,
+        ZONAS_VERDES,
     }
 
     public enum TipoOperadorLocal {
-        SIN_PROCESO, PASO_BAJO, PASO_ALTO,
-        GRADIENTES
+        SIN_PROCESO,
+        PASO_BAJO,
+        PASO_ALTO,
+        SOBEL_ILUMINANCIA,
+        SOBEL_ROJAS,
+        SOBEL_VERDES,
+        MORFOLOGICO,
+        RESIDUO_DILATACION,
     }
 
-    public enum TipoBinarizacion {SIN_PROCESO, ADAPTATIVA, MAXIMO}
+    public enum TipoBinarizacion {
+        SIN_PROCESO,
+        ADAPTATIVA,
+        MAXIMO
+    }
 
-    public enum TipoSegmentacion {SIN_PROCESO}
+    public enum TipoSegmentacion {
+        SIN_PROCESO
+    }
 
-    public enum TipoReconocimiento {SIN_PROCESO}
+    public enum TipoReconocimiento {
+        SIN_PROCESO
+    }
 
     private Mat gris;
     private Mat salidaintensidad;
@@ -184,6 +204,9 @@ class TrafficSenseProcessor {
             case ZONAS_ROJAS:
                 zonaRoja(entrada); //resultado en salidaintensidad
                 break;
+            case ZONAS_VERDES:
+                zonaVerde(entrada); //resultado en salidaintensidad
+                break;
             default:
                 salidaintensidad = entrada;
         }
@@ -194,10 +217,43 @@ class TrafficSenseProcessor {
         // Operador local
         switch (tipoOperadorLocal) {
             case SIN_PROCESO:
-                salidatrlocal = salidaintensidad;
+                salidatrlocal = entrada;
                 break;
             case PASO_BAJO:
-                pasoBajo(salidaintensidad); //resultado en salidatrlocal
+                Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+                pasoBajo(gris); //resultado en salidatrlocal
+                break;
+
+            case PASO_ALTO:
+                Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+                pasoAlto(gris);
+                break;
+
+            case SOBEL_ILUMINANCIA:
+                Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+                sobelLuminancia(gris);
+                break;
+
+            case SOBEL_ROJAS:
+                sobelRojas(entrada);
+                break;
+
+            case SOBEL_VERDES:
+                sobelVerdes(entrada);
+                break;
+
+            case MORFOLOGICO:
+                Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+                morfologico(gris);
+                break;
+
+            case RESIDUO_DILATACION:
+                Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+                residuoDilatacion(gris);
+                break;
+
+            default:
+                salidatrlocal = entrada;
                 break;
         }
         if (mostrarSalida == Salida.OPERADOR_LOCAL) {
@@ -327,7 +383,70 @@ class TrafficSenseProcessor {
     }
 
     private void pasoBajo(Mat entrada) { //Ejemplo para ser rellenado
-        salidatrlocal = entrada;
+        Mat paso_bajo = new Mat();
+        int filter_size = 17;
+        Size s = new Size(filter_size, filter_size);
+        Imgproc.blur(entrada, paso_bajo, s);
+
+        salidatrlocal = paso_bajo;
+    }
+
+    private void pasoAlto(Mat entrada) { //Ejemplo para ser rellenado
+        Mat salida = new Mat();
+
+        Mat paso_bajo = new Mat();
+        int filter_size = 17;
+        Size s = new Size(filter_size, filter_size);
+        Imgproc.blur(entrada, paso_bajo, s);
+
+        // Hacer la resta. Los valores negativos saturan a cero
+        Core.subtract(paso_bajo, entrada, salida);
+
+        //Aplicar Ganancia para ver mejor. La multiplicacion satura
+        Scalar ganancia = new Scalar(2);
+        Core.multiply(salida, ganancia, salida);
+
+        salidatrlocal = salida;
+    }
+
+    private void sobelLuminancia(Mat entrada) { //Ejemplo para ser rellenado
+        Mat Gx = new Mat();
+        Mat Gy = new Mat();
+        Imgproc.Sobel(entrada, Gx, CvType.CV_32FC1, 1, 0);
+        //Derivada primera rto x
+        Imgproc.Sobel(entrada, Gy, CvType.CV_32FC1, 0, 1);
+        //Derivada primera rto y
+
+        Mat Gx2 = new Mat();
+        Mat Gy2 = new Mat();
+        Core.multiply(Gx, Gx , Gx2); //Gx2 = Gx*Gx elemento a elemento
+        Core.multiply(Gy, Gy , Gy2); //Gy2 = Gy*Gy elemento a elemento
+        Mat ModGrad2 = new Mat();
+        Core.add( Gx2 , Gy2, ModGrad2);
+        Mat ModGrad = new Mat();
+        Core.sqrt(ModGrad2,ModGrad);
+
+        ModGrad.convertTo(salidatrlocal, CvType.CV_8UC1);
+    }
+
+    private void sobelRojas(Mat entrada) { //Ejemplo para ser rellenado
+        Mat cRojas = new Mat();
+        Core.extractChannel(entrada, cRojas, 0);
+        sobelLuminancia(cRojas);
+    }
+
+    private void sobelVerdes(Mat entrada) { //Ejemplo para ser rellenado
+        Mat cRojas = new Mat();
+        Core.extractChannel(entrada, cRojas, 1);
+        sobelLuminancia(cRojas);
+    }
+
+    private void morfologico(Mat entrada) { //Ejemplo para ser rellenado
+        salidatrlocal = new Mat();
+    }
+
+    private void residuoDilatacion(Mat entrada) { //Ejemplo para ser rellenado
+        salidatrlocal = new Mat();
     }
 }
 
