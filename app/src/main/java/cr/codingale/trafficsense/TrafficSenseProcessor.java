@@ -230,8 +230,7 @@ class TrafficSenseProcessor {
                 break;
 
             case SOBEL_ILUMINANCIA:
-                Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
-                sobelLuminancia(gris);
+                sobelLuminancia(entrada);
                 break;
 
             case SOBEL_ROJAS:
@@ -409,7 +408,7 @@ class TrafficSenseProcessor {
         salidatrlocal = salida;
     }
 
-    private void sobelLuminancia(Mat entrada) { //Ejemplo para ser rellenado
+    private void modGradiente(Mat entrada) {
         Mat Gx = new Mat();
         Mat Gy = new Mat();
         Imgproc.Sobel(entrada, Gx, CvType.CV_32FC1, 1, 0);
@@ -429,16 +428,21 @@ class TrafficSenseProcessor {
         ModGrad.convertTo(salidatrlocal, CvType.CV_8UC1);
     }
 
+    private void sobelLuminancia(Mat entrada) { //Ejemplo para ser rellenado
+        Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+        modGradiente(gris);
+    }
+
     private void sobelRojas(Mat entrada) { //Ejemplo para ser rellenado
         Mat cRojas = new Mat();
         Core.extractChannel(entrada, cRojas, 0);
-        sobelLuminancia(cRojas);
+        modGradiente(cRojas);
     }
 
     private void sobelVerdes(Mat entrada) { //Ejemplo para ser rellenado
         Mat cRojas = new Mat();
         Core.extractChannel(entrada, cRojas, 1);
-        sobelLuminancia(cRojas);
+        modGradiente(cRojas);
     }
 
     private void morfologico(Mat entrada) { //Ejemplo para ser rellenado
