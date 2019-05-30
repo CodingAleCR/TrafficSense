@@ -58,6 +58,7 @@ class TrafficSenseProcessor {
         SELECCION_CANDIDATOS,
         ANIDADAS,
         ZONAS_ROJAS,
+        DIGITOS_SENAL,
     }
 
     public enum TipoReconocimiento {
@@ -306,6 +307,9 @@ class TrafficSenseProcessor {
 
             case ZONAS_ROJAS:
                 seleccionBasadaColor(entrada);
+                break;
+            case DIGITOS_SENAL:
+                segmentacionDigitos(entrada);
                 break;
         }
         if (mostrarSalida == Salida.SEGMENTACION) {
@@ -812,6 +816,149 @@ class TrafficSenseProcessor {
         } // for
 
         salidasegmentacion = salida;
+    }
+
+    private void segmentacionDigitos(Mat entrada) {
+        Rect rectCirculo = localizarCirculoRojo(entrada);
+        if (rectCirculo == null)
+            salidasegmentacion = entrada.clone();
+        salidasegmentacion = segmentarInteriorDisco(entrada, rectCirculo);
+    }
+
+    private Rect localizarCirculoRojo(Mat entrada) {
+        Rect rectCirculo = new Rect();
+
+        Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+        Mat binaria = new Mat();
+
+        //Calculo del gradiente morfológico.
+        int contraste = 2;
+        int tamano = 7;
+
+        Mat SE = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new
+                Size(tamano, tamano));
+        Mat gray_dilation = new Mat(); // Result
+        Imgproc.dilate(gris, gray_dilation, SE); // 3x3 dilation
+        Mat dilation_residue = new Mat();
+        Core.subtract(gray_dilation, gris, dilation_residue);
+
+        Imgproc.adaptiveThreshold(
+                dilation_residue,
+                binaria,
+                255,
+                Imgproc.ADAPTIVE_THRESH_MEAN_C,
+                Imgproc.THRESH_BINARY,
+                tamano,
+                -contraste);
+
+
+        List<MatOfPoint> blobs = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Mat salida = binaria.clone();//Copia porque finContours modifica entrada
+        Imgproc.cvtColor(salida, salida, Imgproc.COLOR_GRAY2RGBA);
+        Imgproc.findContours(binaria, blobs, hierarchy, Imgproc.RETR_CCOMP,
+                Imgproc.CHAIN_APPROX_NONE);
+        int minimumHeight = 30;
+        float maxratio = (float) 0.75;
+        // Seleccionar candidatos a circulos
+        for (int c = 0; c < blobs.size(); c++) {
+            double[] data = hierarchy.get(0, c);
+            int parent = (int) data[3];
+            if (parent < 0) //Contorno exterior: rechazar
+                continue;
+            Rect BB = Imgproc.boundingRect(blobs.get(c));
+            // Comprobar tamaño
+            if (BB.width < minimumHeight || BB.height < minimumHeight)
+                continue;
+            // Comprobar anchura similar a altura
+            float wf = BB.width;
+            float hf = BB.height;
+            float ratio = wf / hf;
+            if (ratio < maxratio || ratio > 1.0 / maxratio)
+                continue;
+            // Comprobar no está cerca del borde
+            if (BB.x < 2 || BB.y < 2)
+                continue;
+            if (entrada.width() - (BB.x + BB.width) < 3 || entrada.height() -
+                    (BB.y + BB.height) < 3)
+                continue;
+
+            // Comprobar que es un círculo
+            double minMaxDistanceRatio = minMaxDistanceRatio(blobs.get(c));
+            if (0.80 > minMaxDistanceRatio || minMaxDistanceRatio > 1.20)
+                continue;
+
+            // Comprobar que es no es exterior
+            if (hasInnerCircle(blobs, c))
+                continue;
+
+            if (BB.width > rectCirculo.width || BB.height > rectCirculo.height) {
+                rectCirculo = BB;
+            }
+        } // for
+
+        // Release
+        gray_dilation.release();
+        dilation_residue.release();
+        hierarchy.release();
+        salida.release();
+
+        return rectCirculo;
+    }
+
+    private Mat segmentarInteriorDisco(Mat entrada, Rect rectCirculo) {
+        Mat salida = entrada.clone();
+
+        // Extraer componente rojo.
+        Mat circRojo = salida.submat(rectCirculo);
+        Mat red = new Mat();
+        Core.extractChannel(circRojo, red, 0);
+
+        // Binarización Otsu.
+        Mat binaria = new Mat();
+        Imgproc.threshold(red, binaria, 0, 255, Imgproc.THRESH_BINARY_INV + Imgproc.THRESH_OTSU);
+
+        // Segmentación de dígitos
+        List<MatOfPoint> blobs = new ArrayList<>();
+        Mat hierarchy = new Mat();//Copia porque findContours modifica entrada
+        Imgproc.findContours(binaria, blobs, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_NONE);
+        int minimumHeight = 12;
+
+        for (int current = 0; current < blobs.size(); current++) {
+            Rect BB = Imgproc.boundingRect(blobs.get(current));
+
+            // Comprobar tamaño mayor a 12 px
+            if (BB.height < minimumHeight)
+                continue;
+
+            // Comprobar altura mayor que la tercera parte del círculo.
+            if (BB.height < rectCirculo.height / 3)
+                continue;
+
+            // Comprobar altura mayor que su anchura.
+            if (BB.height <= BB.width)
+                continue;
+
+            // Comprobar no está cerca del borde
+            if (BB.x < 2 || BB.y < 2)
+                continue;
+            if (circRojo.width() - (BB.x + BB.width) < 3 || circRojo.height() -
+                    (BB.y + BB.height) < 3)
+                continue;
+
+            // Aqui cumple todos los criterios. Dibujamos
+            final Point P1 = new Point(BB.x, BB.y);
+            final Point P2 = new Point(BB.x + BB.width, BB.y + BB.height);
+            Imgproc.rectangle(circRojo, P1, P2, new Scalar(0, 255, 0));
+        }
+
+        //Releases
+        binaria.release();
+        red.release();
+        hierarchy.release();
+//        circRojo.release();
+
+        return salida;
     }
 }
 

@@ -67,6 +67,8 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     private boolean mSplitScreen = false;
 
+    private int startGC = 15;
+
     public void onSaveInstanceState(Bundle savedInstanceState) {
 // Save the current camera index.
         savedInstanceState.putInt(STATE_CAMERA_INDEX, mCamIndex);
@@ -265,6 +267,16 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
             //Es necesario que el tamaño de la salida coincida con el real de captura
             Imgproc.resize(output, output, new Size(mCamWidth, mCamHeight));
         }
+
+        //Memory release
+        startGC--;
+        if (startGC == 0) {
+            System.gc();
+            System.runFinalization();
+            startGC = 15;
+        }
+
+
         return output;
     }
 
