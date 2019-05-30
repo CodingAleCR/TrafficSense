@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="tipoSalida">
+        <item>Modo Automóvil</item>
         <item>Entrada</item>
         <item>Transformación de Intensidad</item>
         <item>Operador Local</item>
@@ -9,6 +10,7 @@
         <item>Reconocimiento</item>
     </string-array>
     <string-array name="valorSalida">
+        <item>CAR_MODE</item>
         <item>ENTRADA</item>
         <item>INTENSIDAD</item>
         <item>OPERADOR_LOCAL</item>

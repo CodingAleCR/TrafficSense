@@ -23,7 +23,8 @@ class TrafficSenseProcessor {
         OPERADOR_LOCAL,
         BINARIZACION,
         SEGMENTACION,
-        RECONOCIMIENTO
+        RECONOCIMIENTO,
+        CAR_MODE,
     }
 
     public enum TipoIntensidad {
@@ -73,6 +74,7 @@ class TrafficSenseProcessor {
     private Mat salidabinarizacion;
     private Mat salidasegmentacion;
     private Mat salidaocr;
+    private Mat salidaCarro;
 
     private Salida mostrarSalida;
     private TipoIntensidad tipoIntensidad;
@@ -333,10 +335,16 @@ class TrafficSenseProcessor {
                 break;
 
             case LTROCR:
-                salidaocr = entrada;
+                salidaocr = leftToRightOCR(entrada);
                 break;
         }
-        return salidaocr;
+        if (mostrarSalida == Salida.RECONOCIMIENTO) {
+            return salidaocr;
+        }
+
+
+        salidaCarro = entrada;
+        return salidaCarro;
     }
 
     void splitScreen(Mat entrada, Mat salida) {
@@ -1141,7 +1149,7 @@ class TrafficSenseProcessor {
         return nmin;
     }
 
-    public Mat caracteristicas(Mat recorteDigito) {
+    private Mat caracteristicas(Mat recorteDigito) {
         //rectangulo: imagen binaria de digito
         //Convertimos a flotante doble precisión
         Mat chardouble = new Mat();
@@ -1155,22 +1163,113 @@ class TrafficSenseProcessor {
         return digito_3x3.reshape(1, 1);
     }
 
-    Mat dibujarResultado(Mat imagen, Rect digit_rect, int digit) {
+    private Mat dibujarResultado(Mat imagen, Rect digit_rect, String digit) {
         Mat salida = imagen.clone();
         Point P1 = new Point(digit_rect.x, digit_rect.y);
-        Point P2 = new Point(digit_rect.x+digit_rect.width,
-                digit_rect.y+digit_rect.height);
-        Imgproc.rectangle(salida, P1, P2, new Scalar(255,0,0) );
+        Point P2 = new Point(digit_rect.x + digit_rect.width,
+                digit_rect.y + digit_rect.height);
+        Imgproc.rectangle(salida, P1, P2, new Scalar(255, 0, 0));
         // Escribir numero
         int fontFace = 6;//FONT_HERSHEY_SCRIPT_SIMPLEX;
         double fontScale = 1;
         int thickness = 5;
-        Imgproc.putText(salida, Integer.toString(digit ),
+        Imgproc.putText(salida, digit,
                 P1, fontFace, fontScale,
-                new Scalar(0,0,0), thickness, 8,false);
-        Imgproc.putText(salida, Integer.toString(digit ),
+                new Scalar(0, 0, 0), thickness, 8, false);
+        Imgproc.putText(salida, digit,
                 P1, fontFace, fontScale,
-                new Scalar(255,255,255), thickness/2, 8,false);
+                new Scalar(255, 255, 255), thickness / 2, 8, false);
+        return salida;
+    }
+
+    private Mat leftToRightOCR(Mat entrada) {
+        Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+        Rect rect_circulo = localizarCirculoRojo(entrada);
+        if (rect_circulo == null)
+            return entrada.clone();
+        Mat circulo = entrada.submat(rect_circulo); //Recorte zona de interes
+        String cadenaDigitos = analizarInteriorDisco(circulo, rect_circulo);
+        if (cadenaDigitos.length() == 0)
+            return entrada.clone();
+        return dibujarResultado(entrada, rect_circulo, cadenaDigitos);
+    }
+
+    private String analizarInteriorDisco(Mat entrada, Rect rect_circulo) {
+        StringBuilder cadena = new StringBuilder();
+        crearTabla();
+
+        // Extraer componente rojo.
+        Mat red = new Mat();
+        Core.extractChannel(entrada, red, 0);
+
+        // Binarización Otsu.
+        Mat binaria = new Mat();
+        Imgproc.threshold(red, binaria, 0, 255, Imgproc.THRESH_BINARY_INV + Imgproc.THRESH_OTSU);
+
+        // Segmentación de dígitos
+        List<MatOfPoint> blobs = new ArrayList<>();
+        Mat hierarchy = new Mat();//Copia porque findContours modifica entrada
+        Imgproc.findContours(binaria, blobs, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_NONE);
+        int minimumHeight = 12;
+
+        for (int current = 0; current < blobs.size(); current++) {
+            Rect BB = Imgproc.boundingRect(blobs.get(current));
+
+            // Comprobar tamaño mayor a 12 px
+            if (BB.height < minimumHeight)
+                continue;
+
+            // Comprobar altura mayor que la tercera parte del círculo.
+            if (BB.height < rect_circulo.height / 3)
+                continue;
+
+            // Comprobar altura mayor que su anchura.
+            if (BB.height <= BB.width)
+                continue;
+
+            // Comprobar no está cerca del borde
+            if (BB.x < 2 || BB.y < 2)
+                continue;
+            if (entrada.width() - (BB.x + BB.width) < 3 || entrada.height() -
+                    (BB.y + BB.height) < 3)
+                continue;
+
+            //Recortar rectangulo en imagen original
+            Mat recorte_digito = gris.submat(BB);
+
+            //Binarizacion Otsu
+            Imgproc.threshold(recorte_digito, binaria2, 0, 255,
+                    Imgproc.THRESH_BINARY_INV + Imgproc.THRESH_OTSU);
+
+            //Leer numero
+            int digito = leerRectangulo(binaria2);
+            cadena.append(digito);
+        }
+
+        //Releases
+        binaria.release();
+        red.release();
+        hierarchy.release();
+
+        return cadena.toString();
+    }
+
+    private Mat dibujarResultado(Mat imagen, Rect digit_rect, int digit) {
+        Mat salida = imagen.clone();
+        Point P1 = new Point(digit_rect.x, digit_rect.y);
+        Point P2 = new Point(digit_rect.x + digit_rect.width,
+                digit_rect.y + digit_rect.height);
+        Imgproc.rectangle(salida, P1, P2, new Scalar(255, 0, 0));
+        // Escribir numero
+        int fontFace = 6;//FONT_HERSHEY_SCRIPT_SIMPLEX;
+        double fontScale = 1;
+        int thickness = 5;
+        Imgproc.putText(salida, Integer.toString(digit),
+                P1, fontFace, fontScale,
+                new Scalar(0, 0, 0), thickness, 8, false);
+        Imgproc.putText(salida, Integer.toString(digit),
+                P1, fontFace, fontScale,
+                new Scalar(255, 255, 255), thickness / 2, 8, false);
         return salida;
     }
 }

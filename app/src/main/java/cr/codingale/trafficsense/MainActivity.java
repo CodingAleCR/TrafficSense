@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     private boolean mSplitScreen = false;
 
-    private int startGC = 15;
+    private int startGC = 10;
 
     public void onSaveInstanceState(Bundle savedInstanceState) {
 // Save the current camera index.
@@ -273,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         if (startGC == 0) {
             System.gc();
             System.runFinalization();
-            startGC = 15;
+            startGC = 10;
         }
 
 
