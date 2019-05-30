@@ -68,11 +68,13 @@
         <item>Sin proceso</item>
         <item>Sel. Candidatos a Círc.</item>
         <item>Elim. Detecc. Anidadas</item>
+        <item>Zonas Rojas</item>
     </string-array>
     <string-array name="valorSegmentacion">
         <item>SIN_PROCESO</item>
         <item>SELECCION_CANDIDATOS</item>
         <item>ANIDADAS</item>
+        <item>ZONAS_ROJAS</item>
     </string-array>
     <string-array name="tipoReconocimiento">
         <item>Sin proceso</item>

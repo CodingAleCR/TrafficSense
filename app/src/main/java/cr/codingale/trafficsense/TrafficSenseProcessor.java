@@ -57,6 +57,7 @@ class TrafficSenseProcessor {
         SIN_PROCESO,
         SELECCION_CANDIDATOS,
         ANIDADAS,
+        ZONAS_ROJAS,
     }
 
     public enum TipoReconocimiento {
@@ -301,6 +302,10 @@ class TrafficSenseProcessor {
 
             case ANIDADAS:
                 eliminarDeteccionesAnidadas(entrada);
+                break;
+
+            case ZONAS_ROJAS:
+                seleccionBasadaColor(entrada);
                 break;
         }
         if (mostrarSalida == Salida.SEGMENTACION) {
@@ -558,7 +563,7 @@ class TrafficSenseProcessor {
                 -contraste);
 
 
-        List<MatOfPoint> blobs = new ArrayList<MatOfPoint>();
+        List<MatOfPoint> blobs = new ArrayList<>();
         Mat hierarchy = new Mat();
         Mat salida = binaria.clone();//Copia porque finContours modifica entrada
         Imgproc.cvtColor(salida, salida, Imgproc.COLOR_GRAY2RGBA);
@@ -740,6 +745,73 @@ class TrafficSenseProcessor {
                 return true;
         }
         return false;
+    }
+
+    private void seleccionBasadaColor(Mat entrada) {
+        Mat red = new Mat();
+        Mat green = new Mat();
+        Mat blue = new Mat();
+        Mat maxGB = new Mat();
+
+        Mat binaria = new Mat();
+        Core.extractChannel(entrada, red, 0);
+        Core.extractChannel(entrada, green, 1);
+        Core.extractChannel(entrada, blue, 2);
+        Core.max(green, blue, maxGB);
+        Core.subtract(red, maxGB, binaria);
+
+        Core.MinMaxLocResult minMax = Core.minMaxLoc(binaria);
+        int maximum = (int) minMax.maxVal;
+        int thresh = maximum / 4;
+        Imgproc.threshold(binaria, binaria, thresh, 255, Imgproc.THRESH_BINARY);
+
+        List<MatOfPoint> blobs = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Mat salida = binaria.clone();//Copia porque finContours modifica entrada
+        Imgproc.cvtColor(salida, salida, Imgproc.COLOR_GRAY2RGBA);
+        Imgproc.findContours(binaria, blobs, hierarchy, Imgproc.RETR_CCOMP,
+                Imgproc.CHAIN_APPROX_NONE);
+        int minimumHeight = 30;
+        float maxratio = (float) 0.75;
+        // Seleccionar candidatos a circulos
+        for (int c = 0; c < blobs.size(); c++) {
+            double[] data = hierarchy.get(0, c);
+            int parent = (int) data[3];
+            if (parent < 0) //Contorno exterior: rechazar
+                continue;
+            Rect BB = Imgproc.boundingRect(blobs.get(c));
+            // Comprobar tamaño
+            if (BB.width < minimumHeight || BB.height < minimumHeight)
+                continue;
+            // Comprobar anchura similar a altura
+            float wf = BB.width;
+            float hf = BB.height;
+            float ratio = wf / hf;
+            if (ratio < maxratio || ratio > 1.0 / maxratio)
+                continue;
+            // Comprobar no está cerca del borde
+            if (BB.x < 2 || BB.y < 2)
+                continue;
+            if (entrada.width() - (BB.x + BB.width) < 3 || entrada.height() -
+                    (BB.y + BB.height) < 3)
+                continue;
+
+            // Comprobar que es un círculo
+            double minMaxDistanceRatio = minMaxDistanceRatio(blobs.get(c));
+            if (0.80 > minMaxDistanceRatio || minMaxDistanceRatio > 1.20)
+                continue;
+
+            // Comprobar que es no es exterior
+            if (hasInnerCircle(blobs, c))
+                continue;
+
+            // Aqui cumple todos los criterios. Dibujamos
+            final Point P1 = new Point(BB.x, BB.y);
+            final Point P2 = new Point(BB.x + BB.width, BB.y + BB.height);
+            Imgproc.rectangle(salida, P1, P2, new Scalar(0, 0, 255));
+        } // for
+
+        salidasegmentacion = salida;
     }
 }
 
