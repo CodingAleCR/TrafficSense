@@ -55,7 +55,8 @@ class TrafficSenseProcessor {
 
     public enum TipoSegmentacion {
         SIN_PROCESO,
-        SELECCION_CANDIDATOS
+        SELECCION_CANDIDATOS,
+        ANIDADAS,
     }
 
     public enum TipoReconocimiento {
@@ -296,6 +297,10 @@ class TrafficSenseProcessor {
 
             case SELECCION_CANDIDATOS:
                 seleccionCandidatosCirculos(entrada);
+                break;
+
+            case ANIDADAS:
+                eliminarDeteccionesAnidadas(entrada);
                 break;
         }
         if (mostrarSalida == Salida.SEGMENTACION) {
@@ -553,7 +558,6 @@ class TrafficSenseProcessor {
                 -contraste);
 
 
-
         List<MatOfPoint> blobs = new ArrayList<MatOfPoint>();
         Mat hierarchy = new Mat();
         Mat salida = binaria.clone();//Copia porque finContours modifica entrada
@@ -592,6 +596,150 @@ class TrafficSenseProcessor {
 
         salidasegmentacion = salida;
 
+    }
+
+    private void eliminarDeteccionesAnidadas(Mat entrada) {
+        Imgproc.cvtColor(entrada, gris, Imgproc.COLOR_RGBA2GRAY);
+        Mat binaria = new Mat();
+
+        //Calculo del gradiente morfológico.
+        int contraste = 2;
+        int tamano = 7;
+
+        Mat SE = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new
+                Size(tamano, tamano));
+        Mat gray_dilation = new Mat(); // Result
+        Imgproc.dilate(gris, gray_dilation, SE); // 3x3 dilation
+        Mat dilation_residue = new Mat();
+        Core.subtract(gray_dilation, gris, dilation_residue);
+
+        Imgproc.adaptiveThreshold(
+                dilation_residue,
+                binaria,
+                255,
+                Imgproc.ADAPTIVE_THRESH_MEAN_C,
+                Imgproc.THRESH_BINARY,
+                tamano,
+                -contraste);
+
+
+        List<MatOfPoint> blobs = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Mat salida = binaria.clone();//Copia porque finContours modifica entrada
+        Imgproc.cvtColor(salida, salida, Imgproc.COLOR_GRAY2RGBA);
+        Imgproc.findContours(binaria, blobs, hierarchy, Imgproc.RETR_CCOMP,
+                Imgproc.CHAIN_APPROX_NONE);
+        int minimumHeight = 30;
+        float maxratio = (float) 0.75;
+        // Seleccionar candidatos a circulos
+        for (int c = 0; c < blobs.size(); c++) {
+            double[] data = hierarchy.get(0, c);
+            int parent = (int) data[3];
+            if (parent < 0) //Contorno exterior: rechazar
+                continue;
+            Rect BB = Imgproc.boundingRect(blobs.get(c));
+            // Comprobar tamaño
+            if (BB.width < minimumHeight || BB.height < minimumHeight)
+                continue;
+            // Comprobar anchura similar a altura
+            float wf = BB.width;
+            float hf = BB.height;
+            float ratio = wf / hf;
+            if (ratio < maxratio || ratio > 1.0 / maxratio)
+                continue;
+            // Comprobar no está cerca del borde
+            if (BB.x < 2 || BB.y < 2)
+                continue;
+            if (entrada.width() - (BB.x + BB.width) < 3 || entrada.height() -
+                    (BB.y + BB.height) < 3)
+                continue;
+
+            // Comprobar que es un círculo
+            double minMaxDistanceRatio = minMaxDistanceRatio(blobs.get(c));
+            if (0.80 > minMaxDistanceRatio || minMaxDistanceRatio > 1.20)
+                continue;
+
+            // Comprobar que es no es exterior
+            if (hasInnerCircle(blobs, c))
+                continue;
+
+            // Aqui cumple todos los criterios. Dibujamos
+            final Point P1 = new Point(BB.x, BB.y);
+            final Point P2 = new Point(BB.x + BB.width, BB.y + BB.height);
+            Imgproc.rectangle(salida, P1, P2, new Scalar(255, 0, 0));
+        } // for
+
+        salidasegmentacion = salida;
+
+    }
+
+    private double minMaxDistanceRatio(MatOfPoint currBlob) {
+
+        Size sizeA = currBlob.size();
+        double contourPointsCount = sizeA.width * sizeA.height;
+        Point center = centerOf(currBlob);
+
+        double minDistance = contourPointsCount, maxDistance = 0.0;
+        for (int i = 0; i < sizeA.height; i++) {
+            for (int j = 0; j < sizeA.width; j++) {
+                double[] pp = currBlob.get(i, j);
+                Point point = new Point(pp[0], pp[1]);
+                double distance = euclideanDistance(center, point);
+                if (minDistance > distance) minDistance = distance;
+
+                if (maxDistance < distance) maxDistance = distance;
+            }
+        }
+
+        return minDistance / maxDistance;
+    }
+
+    private Point centerOf(MatOfPoint currBlob) {
+        Point sum = new Point(0.0, 0.0);
+        Size sizeA = currBlob.size();
+        for (int i = 0; i < sizeA.height; i++) {
+            for (int j = 0; j < sizeA.width; j++) {
+                double[] pp = currBlob.get(i, j);
+                sum.x += pp[0];
+                sum.y += pp[1];
+            }
+        }
+        double contourPointsCount = sizeA.width * sizeA.height;
+        sum.x /= contourPointsCount;
+        sum.y /= contourPointsCount;
+
+        return sum.clone();
+    }
+
+    private double euclideanDistance(Point a, Point b) {
+        double distance = 0.0;
+        try {
+            if (a != null && b != null) {
+                double xDiff = a.x - b.x;
+                double yDiff = a.y - b.y;
+                distance = Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2));
+            }
+        } catch (Exception e) {
+            System.err.println("Something went wrong in euclideanDistance function in: " + e.getMessage());
+        }
+        return distance;
+    }
+
+    private boolean hasInnerCircle(List<MatOfPoint> allBlobs, int currBlobIndex) {
+        MatOfPoint currBlob = allBlobs.get(currBlobIndex);
+        Point centerOfCurrent = centerOf(allBlobs.get(currBlobIndex));
+
+        for (int i = 0; i < allBlobs.size(); i++) {
+            MatOfPoint blob = allBlobs.get(i);
+            // Comparo Puntos Centrales
+            if (euclideanDistance(centerOfCurrent, centerOf(blob)) > 5) {
+                continue;
+            }
+            // Busco el que tiene distancia a contorno más peq.
+            if (currBlob.size().area() > blob.size().area())
+                return true;
+        }
+        return false;
     }
 }
 
